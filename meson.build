@@ -28,5 +28,8 @@ project('unordered_dense', 'cpp',
     ])
 
 incdir = include_directories('include')
-subdir('test')
+unordered_dense_dep = declare_dependency(
+    include_directories: incdir
+)
+#subdir('test')
 
