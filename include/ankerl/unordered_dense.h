@@ -93,6 +93,9 @@
 #    include <type_traits>      // for enable_if_t, declval, conditional_t, ena...
 #    include <utility>          // for forward, exchange, pair, as_const, piece...
 #    include <vector>           // for vector
+#    include <cereal/types/utility.hpp> // for serialization via cereal
+#    include <cereal/types/memory.hpp>
+#    include <cereal/types/vector.hpp>
 #    if ANKERL_UNORDERED_DENSE_HAS_EXCEPTIONS() == 0
 #        include <cstdlib> // for abort
 #    endif
@@ -785,6 +788,25 @@ public:
     using const_iterator = typename value_container_type::const_iterator;
     using iterator = std::conditional_t<is_map_v<T>, typename value_container_type::iterator, const_iterator>;
     using bucket_type = Bucket;
+
+    // serialize methods for cereal
+    // Buckt needs to be of type bucket_type::standard
+    template <class Archive>
+    void save(Archive& archive) const {
+        archive(this->m_buckets->m_dist_and_fingerprint, this->m_buckets->m_value_idx, this->m_values, this->m_num_buckets, this->m_max_bucket_capacity, this->m_max_load_factor, this->m_shifts);
+    }
+
+    template <class Archive>
+    void load(Archive& archive) {
+        uint32_t saved_m_dist_and_fingerprint;
+        uint32_t saved_m_value_idx;
+        archive(saved_m_dist_and_fingerprint, saved_m_value_idx);
+        Bucket* new_m_buckets = new Bucket;
+        new_m_buckets->m_dist_and_fingerprint = saved_m_dist_and_fingerprint;
+        new_m_buckets->m_value_idx = saved_m_value_idx;
+        this->m_buckets = new_m_buckets;
+        archive(this->m_values, this->m_num_buckets, this->m_max_bucket_capacity, this->m_max_load_factor, this->m_shifts);
+    }
 
 private:
     using value_idx_type = decltype(Bucket::m_value_idx);

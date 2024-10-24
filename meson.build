@@ -27,9 +27,22 @@ project('unordered_dense', 'cpp',
         'b_ndebug=true', # otherwise absl is really slow!
     ])
 
+#
+# Dependencies.
+#
+
+cereal_proj  = subproject('cereal')
+cereal_dep   = cereal_proj.get_variable('cereal_dep')
+
 incdir = include_directories('include')
+unordered_dense = static_library(
+    'unordered',
+    include_directories: incdir,
+    dependencies: [cereal_dep],
+    install: false
+)
 unordered_dense_dep = declare_dependency(
-    include_directories: incdir
+    include_directories: incdir, link_with: unordered_dense, dependencies: [cereal_dep]
 )
 #subdir('test')
 
