@@ -93,6 +93,9 @@
 #    include <type_traits>      // for enable_if_t, declval, conditional_t, ena...
 #    include <utility>          // for forward, exchange, pair, as_const, piece...
 #    include <vector>           // for vector
+#    include <cereal/types/utility.hpp> // for serialization via cereal
+#    include <cereal/types/memory.hpp>
+#    include <cereal/types/vector.hpp>
 #    if ANKERL_UNORDERED_DENSE_HAS_EXCEPTIONS() == 0
 #        include <cstdlib> // for abort
 #    endif
@@ -376,6 +379,11 @@ struct standard {
 
     uint32_t m_dist_and_fingerprint; // upper 3 byte: distance to original bucket. lower byte: fingerprint from hash
     uint32_t m_value_idx;            // index into the m_values vector.
+
+    template <class Archive>
+    void serialize(Archive& archive) {
+        archive(this->m_dist_and_fingerprint, this->m_value_idx);
+    }
 };
 
 ANKERL_UNORDERED_DENSE_PACK(struct big {
@@ -785,6 +793,40 @@ public:
     using const_iterator = typename value_container_type::const_iterator;
     using iterator = std::conditional_t<is_map_v<T>, typename value_container_type::iterator, const_iterator>;
     using bucket_type = Bucket;
+
+    // serialize methods for cereal
+    // Buckt needs to be of type bucket_type::standard
+    template <class Archive>
+    void save(Archive& archive) const {
+        archive(this->m_values, this->m_num_buckets, this->m_max_bucket_capacity, this->m_max_load_factor, this->m_shifts);
+        unsigned int bucket_idx = 0;
+        while (true) {
+            auto* bucket = &at(m_buckets, bucket_idx);
+            archive(*bucket);
+            bucket_idx = next(bucket_idx);
+            if (bucket_idx == 0) {
+                break;
+            }
+        }
+    }
+
+    template <class Archive>
+    void load(Archive& archive) {
+        archive(this->m_values, this->m_num_buckets, this->m_max_bucket_capacity, this->m_max_load_factor, this->m_shifts);
+        allocate_buckets_from_shift();
+        unsigned int bucket_idx = 0;
+        while (true) {
+            auto* bucket = &at(m_buckets, bucket_idx);
+            Bucket bucket_temp;
+            archive(bucket_temp);
+            bucket->m_dist_and_fingerprint = bucket_temp.m_dist_and_fingerprint;
+            bucket->m_value_idx = bucket_temp.m_value_idx;
+            bucket_idx = next(bucket_idx);
+            if (bucket_idx == 0) {
+                break;
+            }
+        }
+    }
 
 private:
     using value_idx_type = decltype(Bucket::m_value_idx);
