@@ -794,6 +794,7 @@ public:
     using iterator = std::conditional_t<is_map_v<T>, typename value_container_type::iterator, const_iterator>;
     using bucket_type = Bucket;
 
+    // TODO: Do we need to save all buckets. After two or so it seems to work out without a problem
     // serialize methods for cereal
     // Buckt needs to be of type bucket_type::standard
     template <class Archive>
